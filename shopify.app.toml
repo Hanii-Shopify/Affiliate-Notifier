@@ -1,13 +1,9 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "85486f81fc11280ce2646da68994b0dc"
-name = "Affliate notifier"
-application_url = "https://shopify.dev/apps/default-app-home"
+client_id = "03299b3a560b45bb5a46949b2ec07aef"
+application_url = "https://example.com"
 embedded = true
-
-[access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_discounts,read_discounts,read_orders"
+name = "Affiliate Notifier"
 
 [webhooks]
 api_version = "2026-10"
@@ -24,9 +20,12 @@ api_version = "2026-10"
   uri = "/webhooks/orders/create"
   topics = [ "orders/create" ]
 
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_discounts,read_orders,write_discounts"
+
 [auth]
-redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
+redirect_urls = [ "https://example.com/api/auth" ]
 
 [build]
-include_config_on_deploy = true
 automatically_update_urls_on_dev = true

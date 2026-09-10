@@ -99,3 +99,15 @@ model EmailTemplate {
   detailsRows String?
   updatedAt   DateTime @updatedAt
 }
+
+// Lets the merchant configure the Gmail sender from the app itself
+// instead of editing .env on the host — useful once this is handed off
+// to someone who doesn't manage the server directly. Falls back to
+// GMAIL_USER/GMAIL_APP_PASSWORD env vars when no row exists yet, so a
+// fresh deploy still works before anyone visits the Settings page.
+model MailerSettings {
+  shop             String   @id
+  gmailUser        String?
+  gmailAppPassword String?
+  updatedAt        DateTime @updatedAt
+}

@@ -1,22 +1,19 @@
 import nodemailer from "nodemailer";
 import { getEmailTemplate } from "./settings/email-template.service.server";
+import { getGmailCredentials } from "./settings/mailer-settings.service.server";
 import { buildAffiliateEmail } from "./email/affiliate-email.server";
 import { formatValue, type ValueType } from "../lib/value-type";
 import type { AffiliateTemplateValues } from "../lib/affiliate-email-template";
 
-let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
-
-function getTransporter() {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
-  }
-  return transporter;
+// Built fresh per send rather than cached — credentials can now change
+// at runtime via the Settings page, so a module-level singleton would
+// keep sending through a stale/old Gmail account until the process
+// restarted.
+function createTransporter(gmailUser: string, gmailAppPassword: string) {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: gmailUser, pass: gmailAppPassword },
+  });
 }
 
 export async function sendAffiliateUsageEmail({
@@ -46,7 +43,14 @@ export async function sendAffiliateUsageEmail({
   paidCommission: number;
   pendingCommission: number;
 }) {
-  const template = await getEmailTemplate(shop);
+  const [template, credentials] = await Promise.all([
+    getEmailTemplate(shop),
+    getGmailCredentials(shop),
+  ]);
+
+  if (!credentials.isConfigured) {
+    throw new Error("Gmail sender isn't configured yet — set it up on the Settings page.");
+  }
 
   const values: AffiliateTemplateValues = {
     affiliate_name: affiliateName,
@@ -69,11 +73,26 @@ export async function sendAffiliateUsageEmail({
     values,
   });
 
-  await getTransporter().sendMail({
-    from: process.env.GMAIL_USER,
+  await createTransporter(credentials.gmailUser, credentials.gmailAppPassword).sendMail({
+    from: credentials.gmailUser,
     to: affiliateEmail,
     subject,
     html,
     text,
+  });
+}
+
+export async function sendTestEmail(shop: string) {
+  const credentials = await getGmailCredentials(shop);
+
+  if (!credentials.isConfigured) {
+    throw new Error("Enter and save a Gmail address and app password first.");
+  }
+
+  await createTransporter(credentials.gmailUser, credentials.gmailAppPassword).sendMail({
+    from: credentials.gmailUser,
+    to: credentials.gmailUser,
+    subject: "Affiliate Notifier — test email",
+    text: "This confirms your Gmail sender is set up correctly. Affiliate notifications will be sent from this address.",
   });
 }
