@@ -82,7 +82,7 @@ export async function sendAffiliateUsageEmail({
   });
 }
 
-export async function sendTestEmail(shop: string) {
+export async function sendTestEmail(shop: string, targetEmail: string) {
   const credentials = await getGmailCredentials(shop);
 
   if (!credentials.isConfigured) {
@@ -91,7 +91,7 @@ export async function sendTestEmail(shop: string) {
 
   await createTransporter(credentials.gmailUser, credentials.gmailAppPassword).sendMail({
     from: credentials.gmailUser,
-    to: credentials.gmailUser,
+    to: targetEmail,
     subject: "Affiliate Notifier — test email",
     text: "This confirms your Gmail sender is set up correctly. Affiliate notifications will be sent from this address.",
   });

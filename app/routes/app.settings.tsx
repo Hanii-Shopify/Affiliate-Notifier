@@ -47,9 +47,15 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<ActionRes
   }
 
   if (intent === "sendTest") {
+    const targetEmail = String(formData.get("targetEmail") ?? "").trim();
+
+    if (!targetEmail || !isValidEmail(targetEmail)) {
+      return { ok: false, error: "Enter a valid email address." };
+    }
+
     try {
-      await sendTestEmail(session.shop);
-      return { ok: true, message: "Test email sent — check the inbox." };
+      await sendTestEmail(session.shop, targetEmail);
+      return { ok: true, message: `Test email sent to ${targetEmail}.` };
     } catch (error) {
       return {
         ok: false,
@@ -66,6 +72,13 @@ function fieldValue(event: FieldEvent): string {
   return ((event.target ?? event.currentTarget) as { value?: string } | null)?.value ?? "";
 }
 
+const SEND_TEST_MODAL_ID = "send-test-email-modal";
+
+type OverlayElement = HTMLElement & { hideOverlay?: () => void };
+function hideOverlay(id: string) {
+  (document.getElementById(id) as OverlayElement | null)?.hideOverlay?.();
+}
+
 export default function Settings() {
   const { gmailUser: savedGmailUser, hasAppPassword, isConfigured } = useLoaderData<typeof loader>();
   const saveFetcher = useFetcher<ActionResult>();
@@ -74,12 +87,15 @@ export default function Settings() {
 
   const [gmailUser, setGmailUser] = useState(savedGmailUser);
   const [gmailAppPassword, setGmailAppPassword] = useState("");
+  const [targetEmail, setTargetEmail] = useState("");
 
   const isSaving = saveFetcher.state !== "idle";
   const isSendingTest = testFetcher.state !== "idle";
 
   const emailError =
     gmailUser.trim() !== "" && !isValidEmail(gmailUser) ? "Enter a valid email address." : undefined;
+  const targetEmailError =
+    targetEmail.trim() !== "" && !isValidEmail(targetEmail) ? "Enter a valid email address." : undefined;
 
   const isDirty = gmailUser !== savedGmailUser || gmailAppPassword.trim() !== "";
   const isValid = isValidEmail(gmailUser) && (hasAppPassword || gmailAppPassword.trim() !== "");
@@ -97,6 +113,9 @@ export default function Settings() {
   useEffect(() => {
     if (testFetcher.data?.ok === true) {
       shopify.toast.show(testFetcher.data.message);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTargetEmail("");
+      hideOverlay(SEND_TEST_MODAL_ID);
     } else if (testFetcher.data?.ok === false) {
       shopify.toast.show(testFetcher.data.error, { isError: true });
     }
@@ -132,20 +151,6 @@ export default function Settings() {
             onInput={(event: FieldEvent) => setGmailAppPassword(fieldValue(event))}
           ></s-password-field>
 
-          <s-box padding="base" background="subdued" borderWidth="base" borderRadius="base">
-            <s-stack direction="block" gap="small-200">
-              <s-text type="strong">How to get an app password</s-text>
-              <s-text color="subdued">
-                This isn&apos;t your normal Gmail password. Turn on 2-Step Verification on the
-                Gmail account, then generate one at{" "}
-                <s-link href="https://myaccount.google.com/apppasswords" target="_blank">
-                  myaccount.google.com/apppasswords
-                </s-link>{" "}
-                and paste it here (spaces don&apos;t matter).
-              </s-text>
-            </s-stack>
-          </s-box>
-
           <s-stack direction="inline" gap="small">
             <s-button
               variant="primary"
@@ -163,15 +168,53 @@ export default function Settings() {
 
             <s-button
               variant="secondary"
-              disabled={!isConfigured || isSendingTest}
-              {...(isSendingTest ? { loading: true } : {})}
-              onClick={() => testFetcher.submit({ intent: "sendTest" }, { method: "post" })}
+              disabled={!isConfigured}
+              commandFor={SEND_TEST_MODAL_ID}
+              command="--show"
             >
               Send test email
             </s-button>
           </s-stack>
         </s-stack>
       </s-section>
+
+      <s-modal id={SEND_TEST_MODAL_ID} heading="Send test email">
+        <s-stack direction="block" gap="base">
+          <s-paragraph>
+            Send a sample notification email to any address to confirm the Gmail sender is
+            working.
+          </s-paragraph>
+          <s-email-field
+            label="Send to"
+            value={targetEmail}
+            required
+            error={targetEmailError}
+            onInput={(event: FieldEvent) => setTargetEmail(fieldValue(event))}
+          ></s-email-field>
+        </s-stack>
+
+        <s-button
+          slot="secondary-actions"
+          variant="secondary"
+          commandFor={SEND_TEST_MODAL_ID}
+          command="--hide"
+          disabled={isSendingTest}
+        >
+          Cancel
+        </s-button>
+
+        <s-button
+          slot="primary-action"
+          variant="primary"
+          disabled={!isValidEmail(targetEmail) || isSendingTest}
+          {...(isSendingTest ? { loading: true } : {})}
+          onClick={() =>
+            testFetcher.submit({ intent: "sendTest", targetEmail }, { method: "post" })
+          }
+        >
+          Send
+        </s-button>
+      </s-modal>
     </s-page>
   );
 }
