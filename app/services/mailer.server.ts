@@ -59,9 +59,9 @@ export async function sendAffiliateUsageEmail({
     commission_rate: formatValue(commissionType, commissionValue),
     order_name: orderName,
     order_value: `${orderValue} ${currency}`,
-    total_commission: `$${totalCommission.toFixed(2)}`,
-    paid_commission: `$${paidCommission.toFixed(2)}`,
-    pending_commission: `$${pendingCommission.toFixed(2)}`,
+    total_commission: `${totalCommission.toFixed(2)} ${currency}`,
+    paid_commission: `${paidCommission.toFixed(2)} ${currency}`,
+    pending_commission: `${pendingCommission.toFixed(2)} ${currency}`,
     shop_domain: shop,
     store_url: `https://${shop}`,
   };
