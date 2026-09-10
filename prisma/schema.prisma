@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+enum ValueType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+model Affiliate {
+  id                String       @id @default(cuid())
+  shop              String
+  name              String
+  email             String
+  discountCode      String       @unique
+  discountType      ValueType    @default(PERCENTAGE)
+  discountValue     Float
+  commissionType    ValueType    @default(PERCENTAGE)
+  commissionValue   Float
+  shopifyDiscountId String
+  active            Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  usageEvents       UsageEvent[]
+  payouts           Payout[]
+
+  @@index([shop])
+}
+
+model UsageEvent {
+  id               String    @id @default(cuid())
+  affiliateId      String
+  affiliate        Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  shopifyOrderId   String
+  orderName        String
+  orderValue       Decimal
+  currency         String
+  commissionEarned Decimal   @default(0)
+  emailSent        Boolean   @default(false)
+  emailError       String?
+  createdAt        DateTime  @default(now())
+
+  @@index([affiliateId])
+}
+
+// A manual payment log — commissions here are never paid out through
+// Shopify (there's no such flow), so the merchant just records what they
+// paid outside the app (bank transfer, PayPal, cash, etc.) and this is
+// the ledger of that.
+model Payout {
+  id          String   @id @default(cuid())
+  affiliateId String
+  affiliate   Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  amount      Decimal
+  paidAt      DateTime @default(now())
+
+  @@index([affiliateId])
+}
+
+// One customizable notification-email template per shop. subject/blocks
+// are left nullable rather than given inline JSON defaults here — the
+// real defaults live in app/config/email-template-defaults.server.ts,
+// resolved at read-time, so there's a single source of truth instead of
+// two copies (a TS one and a schema one) that could drift apart.
+model EmailTemplate {
+  shop        String   @id
+  subject     String?
+  blocks      String?
+  detailsRows String?
+  updatedAt   DateTime @updatedAt
+}
